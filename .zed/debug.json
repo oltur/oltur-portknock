@@ -1,0 +1,51 @@
+// Project-local debug tasks
+//
+// For more documentation on how to configure debug tasks,
+// see: https://zed.dev/docs/debugger
+[
+  {
+    "label": "Debug portknock (knock)",
+    "adapter": "CodeLLDB",
+    "request": "launch",
+    "build": {
+      "command": "cargo",
+      "args": ["build"],
+    },
+    "program": "$ZED_WORKTREE_ROOT/target/debug/portknock",
+    "args": ["knock", "127.0.0.1", "17000", "18000", "19000", "--delay", "50"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+  },
+  {
+    "label": "Debug portknock (sniff)",
+    "adapter": "CodeLLDB",
+    "request": "launch",
+    "build": {
+      "command": "cargo",
+      "args": ["build"],
+    },
+    "program": "$ZED_WORKTREE_ROOT/target/debug/portknock",
+    "args": ["sniff", "127.0.0.1", "1-10000"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+  },
+  {
+    "label": "Debug portknock (detect)",
+    "adapter": "CodeLLDB",
+    "request": "launch",
+    "build": {
+      "command": "cargo",
+      "args": ["build"],
+    },
+    "program": "$ZED_WORKTREE_ROOT/target/debug/portknock",
+    "args": ["detect", "17000", "18000", "19000"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+  },
+  {
+    "label": "Debug portknock tests",
+    "adapter": "CodeLLDB",
+    "request": "launch",
+    "build": {
+      "command": "cargo",
+      "args": ["test", "--no-run"],
+    },
+  },
+]
