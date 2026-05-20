@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo --version)",
+      "Bash(rustc --version)",
+      "Bash(cargo init *)",
+      "Bash(cargo build *)",
+      "Bash(cargo run *)",
+      "Bash(git -C /Users/oleksandrturevskiy/projects/rust/portknock status --short)",
+      "Bash(git -C /Users/oleksandrturevskiy/projects/rust/portknock log --oneline)",
+      "Bash(git -C /Users/oleksandrturevskiy/projects/rust/portknock branch --show-current)",
+      "Bash(cargo test *)",
+      "Bash(git add *)",
+      "Bash(git -c 'user.name=Oleksandr Turevskiy' -c user.email=olturua@gmail.com commit -q -m ' *)"
+    ]
+  }
+}
