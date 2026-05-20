@@ -21,7 +21,8 @@
       "Bash(kill %1)",
       "Bash(pkill -f 'portknock detect')",
       "Bash(lsof -nP -iTCP:7000 -sTCP:LISTEN)",
-      "Bash(lsof -nP -iUDP:7000)"
+      "Bash(lsof -nP -iUDP:7000)",
+      "Bash(echo \"=== exit: $? ===\")"
     ]
   }
 }

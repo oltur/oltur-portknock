@@ -16,7 +16,9 @@ use std::env;
 use std::process::ExitCode;
 
 use config::Command;
+use oltur_trace::oltur_trace;
 
+#[oltur_trace]
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().skip(1).collect();
     let outcome = match cli::parse_args(&args) {

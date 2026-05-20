@@ -11,6 +11,7 @@
 //! libpcap), which this std-only crate deliberately avoids.
 
 use std::collections::HashMap;
+use std::io::{self, IsTerminal};
 use std::net::{IpAddr, TcpListener};
 use std::sync::mpsc::{self, Sender};
 use std::thread;
@@ -22,6 +23,14 @@ use crate::config::DetectConfig;
 struct Knock {
     src: IpAddr,
     port: u16,
+}
+
+/// A message to the coordinator from one of the worker threads.
+enum Event {
+    /// An observed knock, forwarded by a port's accept thread.
+    Knock(Knock),
+    /// A request to stop, sent when the user presses Enter (or closes stdin).
+    Shutdown,
 }
 
 /// How far one client has progressed through the knock sequence.
@@ -49,8 +58,9 @@ enum Step {
 
 /// Listen for the configured knock sequence and report recognized clients.
 ///
-/// Runs until interrupted; only returns if a port cannot be bound or every
-/// listener thread stops.
+/// When stdin is a terminal, pressing Enter (or closing stdin) stops detect
+/// cleanly, returning `Ok(())`; otherwise it runs until the process is
+/// signalled. Returns `Err` only when a port cannot be bound.
 pub fn detect(cfg: &DetectConfig) -> Result<(), String> {
     // The sequence may name a port more than once; listen on each port once.
     let mut listen_ports: Vec<u16> = cfg.sequence.clone();
@@ -59,27 +69,48 @@ pub fn detect(cfg: &DetectConfig) -> Result<(), String> {
 
     // One accept thread per port feeds knocks to the coordinator below. Bind
     // every port up front so a failure is reported before we claim to listen.
-    let (tx, rx) = mpsc::channel::<Knock>();
+    let (tx, rx) = mpsc::channel::<Event>();
     for &port in &listen_ports {
         let listener = TcpListener::bind((cfg.bind, port))
             .map_err(|e| format!("cannot listen on {}:{port}: {e}", cfg.bind))?;
         let tx = tx.clone();
         thread::spawn(move || accept_loop(&listener, port, &tx));
     }
-    drop(tx); // Only the listener threads should keep the channel open.
+
+    // When stdin is a terminal, a watcher thread turns an Enter keypress (or a
+    // closed stdin) into a Shutdown event. With no terminal there is nobody to
+    // press Enter, so detect runs until the process is signalled instead.
+    let interactive = io::stdin().is_terminal();
+    if interactive {
+        let tx = tx.clone();
+        thread::spawn(move || shutdown_on_input(&tx));
+    }
+    drop(tx); // Only the worker threads should keep the channel open.
 
     println!(
         "detect: listening on {} port(s) {:?} for sequence {:?}",
         cfg.bind, listen_ports, cfg.sequence
     );
+    let stop_hint = if interactive {
+        "press Enter to stop"
+    } else {
+        "Ctrl+C to stop"
+    };
     println!(
-        "detect: sequence must complete within {} ms — waiting for knocks (Ctrl+C to stop)",
+        "detect: sequence must complete within {} ms — waiting for knocks ({stop_hint})",
         cfg.window.as_millis()
     );
 
     // The coordinator owns all client state, so no locking is needed.
     let mut progress: HashMap<IpAddr, Progress> = HashMap::new();
-    for knock in rx {
+    for event in rx {
+        let knock = match event {
+            Event::Knock(knock) => knock,
+            Event::Shutdown => {
+                println!("detect: stopping — no longer listening for knocks");
+                return Ok(());
+            }
+        };
         let step = apply_knock(
             &cfg.sequence,
             cfg.window,
@@ -94,7 +125,7 @@ pub fn detect(cfg: &DetectConfig) -> Result<(), String> {
 }
 
 /// Accept connections on `port` forever, forwarding each peer's IP as a knock.
-fn accept_loop(listener: &TcpListener, port: u16, tx: &Sender<Knock>) {
+fn accept_loop(listener: &TcpListener, port: u16, tx: &Sender<Event>) {
     for stream in listener.incoming() {
         let Ok(stream) = stream else { continue };
         let Ok(peer) = stream.peer_addr() else {
@@ -102,16 +133,22 @@ fn accept_loop(listener: &TcpListener, port: u16, tx: &Sender<Knock>) {
         };
         // The knock carries no payload — close the connection right away.
         drop(stream);
-        if tx
-            .send(Knock {
-                src: peer.ip(),
-                port,
-            })
-            .is_err()
-        {
+        let knock = Knock {
+            src: peer.ip(),
+            port,
+        };
+        if tx.send(Event::Knock(knock)).is_err() {
             break; // The coordinator is gone; nothing left to do.
         }
     }
+}
+
+/// Wait for the user to press Enter (or close stdin), then ask the coordinator
+/// to stop. An I/O error on stdin is treated as a stop request too.
+fn shutdown_on_input(tx: &Sender<Event>) {
+    let mut line = String::new();
+    let _ = io::stdin().read_line(&mut line);
+    let _ = tx.send(Event::Shutdown);
 }
 
 /// Apply one observed knock to the per-client progress map.

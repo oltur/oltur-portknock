@@ -3,5 +3,12 @@
 version = 4
 
 [[package]]
+name = "oltur_trace"
+version = "0.1.0"
+
+[[package]]
 name = "portknock"
 version = "0.1.0"
+dependencies = [
+ "oltur_trace",
+]
