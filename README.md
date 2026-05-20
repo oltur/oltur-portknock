@@ -16,13 +16,17 @@ covers both sides of that handshake and throws in a port scanner.
   report each client that completes it, with a clean press-Enter-to-stop exit.
 - **`#[oltur_trace]`** — a bundled procedural attribute macro that logs when a
   function starts and finishes, with timestamps and elapsed time.
-- **Zero external dependencies** — the binary uses only the Rust standard
-  library; the macro uses only the built-in `proc_macro` crate.
+- **`oltur-cpp-tools`** — a bundled C++ library; `knock` calls into it over FFI
+  to MD5-fingerprint the port sequence.
+- **No external crate dependencies** — the binary uses only the Rust standard
+  library, the macro only the built-in `proc_macro` crate, and the C++ library
+  only libc. Building needs just a Rust toolchain and a C++ compiler.
 
 ## Requirements
 
 - Rust **1.85+** (the crate uses edition 2024).
-- No other tooling — `cargo build` is enough.
+- A C++ compiler on `PATH` (`c++` / clang++ / g++) — `build.rs` compiles the
+  bundled `oltur-cpp-tools` library. Override the compiler with `$CXX`.
 
 ## Build
 
@@ -53,7 +57,9 @@ cannot be bound, an unresolvable host, …).
 
 Contacts each port in order, pausing `--delay` between them. For TCP it makes a
 connection attempt and **ignores the result on purpose** — simply reaching the
-port is the whole point of a knock. For UDP it sends an empty datagram.
+port is the whole point of a knock. For UDP it sends an empty datagram. Before
+sending, it prints an MD5 fingerprint of the comma-separated port list,
+computed by the bundled `oltur-cpp-tools` C++ library.
 
 | Option | Default | Meaning |
 |---|---|---|
@@ -63,6 +69,7 @@ port is the whole point of a knock. For UDP it sends an empty datagram.
 
 ```bash
 $ portknock knock 192.168.1.10 7000 8000 9000 --delay 300
+knock: sequence 7000,8000,9000 — md5 30110d80677fea321a5172dbd5dce219
 knock 7000/tcp -> 192.168.1.10
 knock 8000/tcp -> 192.168.1.10
 knock 9000/tcp -> 192.168.1.10
@@ -155,15 +162,21 @@ This repository is a Cargo workspace with two crates:
 ```
 portknock/
 ├── Cargo.toml          # workspace root + the `portknock` binary package
+├── build.rs            # compiles & links the oltur-cpp-tools C++ library
 ├── src/
 │   ├── main.rs         # entry point; dispatches to a mode, maps to ExitCode
 │   ├── cli.rs          # argument parsing and --help text
 │   ├── config.rs       # shared model: Command, *Config structs, Proto
 │   ├── knock.rs        # knock mode
 │   ├── sniff.rs        # sniff mode (worker-pool port scanner)
-│   └── detect.rs       # detect mode (knock-sequence listener)
-└── oltur_trace/
-    └── src/lib.rs      # the #[oltur_trace] attribute macro
+│   ├── detect.rs       # detect mode (knock-sequence listener)
+│   └── md5.rs          # FFI boundary to oltur-cpp-tools
+├── oltur_trace/
+│   └── src/lib.rs      # the #[oltur_trace] attribute macro
+└── oltur-cpp-tools/    # bundled C++ library
+    ├── include/        # public C-ABI header
+    ├── src/md5.cpp     # MD5 implementation
+    └── CMakeLists.txt  # standalone build (not used by cargo)
 ```
 
 ## Development
