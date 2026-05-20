@@ -12,7 +12,16 @@
       "Bash(cargo test *)",
       "Bash(git add *)",
       "Bash(git -c 'user.name=Oleksandr Turevskiy' -c user.email=olturua@gmail.com commit -q -m ' *)",
-      "Bash(git check-ignore *)"
+      "Bash(git check-ignore *)",
+      "Bash(cargo clippy *)",
+      "Bash(cargo fmt *)",
+      "Bash(./target/debug/portknock detect *)",
+      "Bash(break)",
+      "Bash(./target/debug/portknock knock *)",
+      "Bash(kill %1)",
+      "Bash(pkill -f 'portknock detect')",
+      "Bash(lsof -nP -iTCP:7000 -sTCP:LISTEN)",
+      "Bash(lsof -nP -iUDP:7000)"
     ]
   }
 }
