@@ -24,7 +24,9 @@
       "Bash(lsof -nP -iUDP:7000)",
       "Bash(echo \"=== exit: $? ===\")",
       "Bash(git -C /Users/oleksandrturevskiy/projects/rust/portknock ls-files)",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(md5 -s \"7000,8000,9000\")",
+      "Bash(md5)"
     ]
   }
 }

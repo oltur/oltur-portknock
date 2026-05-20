@@ -10,6 +10,7 @@ mod cli;
 mod config;
 mod detect;
 mod knock;
+mod md5;
 mod sniff;
 
 use std::env;

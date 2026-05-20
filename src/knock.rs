@@ -4,9 +4,21 @@ use std::net::{TcpStream, ToSocketAddrs, UdpSocket};
 use std::thread;
 
 use crate::config::{KnockConfig, Proto};
+use crate::md5;
 
 /// Send the knock sequence, pausing `delay` between each port.
 pub fn knock(cfg: &KnockConfig) -> Result<(), String> {
+    // Fingerprint the knock sequence: MD5 of the comma-separated port list,
+    // computed by the bundled oltur-cpp-tools C++ library.
+    let ports_csv = cfg
+        .ports
+        .iter()
+        .map(u16::to_string)
+        .collect::<Vec<_>>()
+        .join(",");
+    let fingerprint = md5::hex(&md5::digest(ports_csv.as_bytes()));
+    println!("knock: sequence {ports_csv} — md5 {fingerprint}");
+
     for (i, &port) in cfg.ports.iter().enumerate() {
         if i > 0 {
             thread::sleep(cfg.delay);
