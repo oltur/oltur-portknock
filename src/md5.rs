@@ -1,23 +1,31 @@
 //! MD5 hashing via the bundled `oltur-cpp-tools` C++ library.
 //!
-//! The digest is computed by `oltur_md5` in `oltur-cpp-tools/src/md5.cpp`; this
-//! module is only the FFI boundary plus a hex formatter. `build.rs` compiles
-//! and links the C++ object.
+//! The boundary is a `cxx` bridge: the `#[cxx::bridge]` module below declares
+//! the shared `Digest` struct and the C++ `md5_digest` function. `cxx-build`
+//! (in `build.rs`) generates the FFI glue and compiles the C++; the bridge C++
+//! lives in `bridge/md5_bridge.{h,cpp}` and adapts the pure C-ABI `oltur_md5`.
 
-unsafe extern "C" {
-    /// Writes the 16-byte MD5 digest of `len` bytes at `data` into `out`.
-    fn oltur_md5(data: *const u8, len: usize, out: *mut u8);
+#[cxx::bridge(namespace = "oltur")]
+mod ffi {
+    /// A 16-byte MD5 digest — a struct shared by value between Rust and C++.
+    struct Digest {
+        bytes: [u8; 16],
+    }
+
+    // SAFETY (block-level): asserts the declared C++ function is sound to
+    // call. `md5_digest` takes a slice and returns a plain struct — no raw
+    // pointers cross here — so each call site stays safe Rust.
+    unsafe extern "C++" {
+        include!("md5_bridge.h");
+
+        /// Compute the MD5 digest of `data`. Implemented in C++.
+        fn md5_digest(data: &[u8]) -> Digest;
+    }
 }
 
 /// Compute the MD5 digest of `data`.
 pub fn digest(data: &[u8]) -> [u8; 16] {
-    let mut out = [0u8; 16];
-    // SAFETY: `data`/`len` describe a live slice, and `out` is a writable
-    // 16-byte buffer — exactly the regions `oltur_md5` reads and writes.
-    unsafe {
-        oltur_md5(data.as_ptr(), data.len(), out.as_mut_ptr());
-    }
-    out
+    ffi::md5_digest(data).bytes
 }
 
 /// Format a digest as a 32-character lowercase hex string.

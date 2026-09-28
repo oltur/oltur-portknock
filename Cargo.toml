@@ -8,3 +8,7 @@ members = ["oltur_trace"]
 
 [dependencies]
 oltur_trace = { path = "oltur_trace" }
+cxx = "1"
+
+[build-dependencies]
+cxx-build = "1"
